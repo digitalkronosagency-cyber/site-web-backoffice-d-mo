@@ -2,6 +2,10 @@
 
 Démo commerciale d'un site web complet pour artisan électricien : vitrine publique, formulaire de devis, authentification admin par email (magic link), backoffice de gestion des devis/factures, et personnalisation du contenu du site — le tout pensé pour être **dupliqué facilement pour d'autres artisans** sans modification de code.
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdigitalkronosagency-cyber%2Fsite-web-backoffice-d-mo%2Ftree%2Fclaude%2Felectricite-dumont-website-g2wqz7&env=ADMIN_EMAIL%2CAUTH_SECRET%2CRESEND_API_KEY%2CRESEND_FROM_EMAIL%2CNEXT_PUBLIC_BASE_URL%2CCRON_SECRET&envDescription=Variables+requises+%28le+stockage+Blob+est+cree+automatiquement+ci-dessous%2C+la+base+de+donnees+se+cree+en+un+clic+juste+apres+import%29&envLink=https%3A%2F%2Fgithub.com%2Fdigitalkronosagency-cyber%2Fsite-web-backoffice-d-mo%2Fblob%2Fclaude%2Felectricite-dumont-website-g2wqz7%2F.env.example&stores=%5B%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22public%22%7D%5D)
+
+Ce bouton pré-remplit les variables d'environnement et crée le stockage Blob automatiquement. La seule action manuelle restante est de créer la base de données Postgres (1 clic, voir étape 2 ci-dessous) — les migrations et les données de démo se chargent ensuite tout seuls au premier déploiement.
+
 ## Stack technique
 
 - **Next.js 14** (App Router) + TypeScript
@@ -69,7 +73,9 @@ Variables à renseigner (voir `.env.example` pour la liste complète et comment�
 | `BLOB_READ_WRITE_TOKEN` | Token Vercel Blob |
 | `CRON_SECRET` | Secret de sécurisation de la route cron (`openssl rand -hex 24`) |
 
-## 5. Créer le schéma et charger les données de démo
+## 5. Créer le schéma et charger les données de démo (local uniquement)
+
+Sur Vercel, cette étape est automatique (voir section 7). En local :
 
 ```bash
 npx prisma migrate dev --name init
@@ -94,15 +100,19 @@ Checklist de test :
 
 ## 7. Déployer sur Vercel
 
+**Avec le bouton "Deploy with Vercel" en haut de ce README** (recommandé) :
+1. Cliquez sur le bouton — Vercel importe le repo, crée automatiquement le store **Blob**, et vous demande de renseigner `ADMIN_EMAIL`, `AUTH_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_BASE_URL`, `CRON_SECRET` dans le même écran.
+2. Une fois le projet créé, allez dans **Storage → Create Database → Postgres** (Neon) pour ce projet — c'est la seule étape qui ne peut pas être automatisée par le bouton de déploiement.
+3. Redéployez (**Deployments → ⋯ → Redeploy**). Le build applique automatiquement les migrations Prisma et charge les données de démo si la base est vide (voir `scripts/vercel-build.js` et `prisma/seed-if-empty.ts`) — aucune commande manuelle n'est nécessaire.
+4. Vérifiez que le Cron Job apparaît dans **Project → Cron Jobs** (configuré via `vercel.json`, exécution quotidienne à 8h UTC pour les relances de devis).
+
+**Import manuel classique** (alternative) :
 1. Poussez le repo sur GitHub et importez-le dans Vercel.
 2. Dans **Project Settings → Environment Variables**, ajoutez toutes les variables listées dans `.env.example`.
-3. Le build Vercel exécute `npm run build`, qui lance `prisma generate` (via `postinstall`) puis `next build`. Après le premier déploiement, exécutez les migrations sur la base de production :
-   ```bash
-   npx prisma migrate deploy
-   npx prisma db seed   # optionnel : uniquement pour peupler une démo
-   ```
-   (à exécuter localement avec le `DATABASE_URL`/`DIRECT_URL` de production, ou via `vercel env pull`).
-4. Vérifiez que le Cron Job apparaît dans **Project → Cron Jobs** (configuré via `vercel.json`, exécution quotidienne à 8h UTC pour les relances de devis).
+3. Dans **Storage**, créez une base **Postgres**.
+4. Redéployez — mêmes migrations/seed automatiques qu'au point 3 ci-dessus.
+
+> Le script de build (`scripts/vercel-build.js`) tolère aussi les noms de variables historiques de l'intégration Postgres de Vercel (`POSTGRES_PRISMA_URL`, `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING`...) si `DATABASE_URL`/`DIRECT_URL` ne sont pas présentes telles quelles.
 
 ## 8. Dupliquer ce projet pour un nouveau client artisan
 
