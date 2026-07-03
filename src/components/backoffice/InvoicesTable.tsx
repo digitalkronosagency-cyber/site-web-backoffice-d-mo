@@ -19,12 +19,20 @@ interface InvoiceRow {
 export function InvoicesTable({ invoices }: { invoices: InvoiceRow[] }) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function markPaid(id: string) {
     setLoadingId(id);
+    setError(null);
     try {
-      await fetch(`/api/admin/invoices/${id}/pay`, { method: 'POST' });
+      const res = await fetch(`/api/admin/invoices/${id}/pay`, { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Échec de la mise à jour');
+      }
       router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Échec de la mise à jour');
     } finally {
       setLoadingId(null);
     }
@@ -32,9 +40,16 @@ export function InvoicesTable({ invoices }: { invoices: InvoiceRow[] }) {
 
   async function sendInvoice(id: string) {
     setLoadingId(id);
+    setError(null);
     try {
-      await fetch(`/api/admin/invoices/${id}/send`, { method: 'POST' });
+      const res = await fetch(`/api/admin/invoices/${id}/send`, { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Échec de l'envoi");
+      }
       router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Échec de l'envoi");
     } finally {
       setLoadingId(null);
     }
@@ -45,7 +60,9 @@ export function InvoicesTable({ invoices }: { invoices: InvoiceRow[] }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+    <div className="space-y-3">
+      {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
@@ -88,6 +105,7 @@ export function InvoicesTable({ invoices }: { invoices: InvoiceRow[] }) {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

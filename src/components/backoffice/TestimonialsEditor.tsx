@@ -23,13 +23,18 @@ export function TestimonialsEditor({ testimonials: initial }: { testimonials: Te
   const [testimonials, setTestimonials] = useState(initial);
   const [newItem, setNewItem] = useState({ name: '', rating: 5, comment: '', date: new Date().toISOString().slice(0, 10) });
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function deleteTestimonial(id: string) {
     setBusy(true);
+    setError(null);
     try {
-      await fetch(`/api/admin/testimonials/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/testimonials/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Échec de la suppression');
       setTestimonials((prev) => prev.filter((t) => t.id !== id));
       router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Échec de la suppression');
     } finally {
       setBusy(false);
     }
@@ -38,16 +43,20 @@ export function TestimonialsEditor({ testimonials: initial }: { testimonials: Te
   async function addTestimonial() {
     if (!newItem.name || !newItem.comment) return;
     setBusy(true);
+    setError(null);
     try {
       const res = await fetch('/api/admin/testimonials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newItem),
       });
-      const created = await res.json();
-      setTestimonials((prev) => [...prev, created]);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Échec de l'ajout de l'avis");
+      setTestimonials((prev) => [...prev, data]);
       setNewItem({ name: '', rating: 5, comment: '', date: new Date().toISOString().slice(0, 10) });
       router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Échec de l'ajout de l'avis");
     } finally {
       setBusy(false);
     }
@@ -55,6 +64,7 @@ export function TestimonialsEditor({ testimonials: initial }: { testimonials: Te
 
   return (
     <div className="space-y-4">
+      {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {testimonials.map((t) => (
         <Card key={t.id} className="flex items-start justify-between gap-4 p-4">
           <div>

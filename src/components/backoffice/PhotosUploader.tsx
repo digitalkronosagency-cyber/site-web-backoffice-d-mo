@@ -15,6 +15,7 @@ export function PhotosUploader({ photos: initial }: { photos: PhotoItem[] }) {
   const router = useRouter();
   const [photos, setPhotos] = useState(initial);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleUpload(e: ChangeEvent<HTMLInputElement>) {
@@ -22,13 +23,17 @@ export function PhotosUploader({ photos: initial }: { photos: PhotoItem[] }) {
     if (!file) return;
 
     setUploading(true);
+    setError(null);
     try {
       const formData = new FormData();
       formData.append('file', file);
       const res = await fetch('/api/admin/photos', { method: 'POST', body: formData });
-      const created = await res.json();
-      setPhotos((prev) => [...prev, created]);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Échec de l'upload");
+      setPhotos((prev) => [...prev, data]);
       router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Échec de l'upload");
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -64,6 +69,7 @@ export function PhotosUploader({ photos: initial }: { photos: PhotoItem[] }) {
             <Upload size={16} /> {uploading ? 'Envoi en cours...' : 'Ajouter une photo'}
           </Button>
         </label>
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
       </div>
     </div>
   );

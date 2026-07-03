@@ -23,6 +23,7 @@ export function ServicesEditor({ services: initialServices }: { services: Servic
   const [services, setServices] = useState(initialServices);
   const [newService, setNewService] = useState({ title: '', description: '', icon: ICON_OPTIONS[0] });
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
     router.refresh();
@@ -68,10 +69,13 @@ export function ServicesEditor({ services: initialServices }: { services: Servic
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newService),
       });
-      const created = await res.json();
-      setServices((prev) => [...prev, created]);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Échec de l'ajout du service");
+      setServices((prev) => [...prev, data]);
       setNewService({ title: '', description: '', icon: ICON_OPTIONS[0] });
       await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Échec de l'ajout du service");
     } finally {
       setBusy(false);
     }
@@ -101,6 +105,7 @@ export function ServicesEditor({ services: initialServices }: { services: Servic
 
   return (
     <div className="space-y-4">
+      {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {services.map((service, idx) => {
         const Icon = getIcon(service.icon);
         return (

@@ -16,12 +16,20 @@ interface RelanceItem {
 export function RelanceList({ quotes }: { quotes: RelanceItem[] }) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleRelance(id: string) {
     setLoadingId(id);
+    setError(null);
     try {
-      await fetch(`/api/admin/quotes/${id}/relance`, { method: 'POST' });
+      const res = await fetch(`/api/admin/quotes/${id}/relance`, { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Échec de la relance');
+      }
       router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Échec de la relance');
     } finally {
       setLoadingId(null);
     }
@@ -30,6 +38,7 @@ export function RelanceList({ quotes }: { quotes: RelanceItem[] }) {
   return (
     <Card className="p-5">
       <h3 className="mb-4 font-semibold text-brand-900">Devis à relancer</h3>
+      {error && <div className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</div>}
       {quotes.length === 0 ? (
         <p className="text-sm text-gray-400">Aucun devis à relancer pour le moment.</p>
       ) : (

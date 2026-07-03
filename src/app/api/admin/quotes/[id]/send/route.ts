@@ -7,6 +7,7 @@ import { quoteSentTemplate } from '@/lib/email-templates/quoteSent';
 import { logActivity } from '@/lib/activity';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 export async function POST(_request: Request, { params }: { params: { id: string } }) {
   const { response } = await requireAdmin();
@@ -34,35 +35,48 @@ export async function POST(_request: Request, { params }: { params: { id: string
     0
   );
 
-  const { url, buffer } = await generateQuotePdf(
-    {
-      id: quote.id,
-      clientName: quote.clientName,
-      clientEmail: quote.clientEmail,
-      clientPhone: quote.clientPhone,
-      clientAddress: quote.clientAddress,
-      serviceType: quote.serviceType,
-      createdAt: quote.createdAt,
-      lineItems: quote.lineItems.map((li) => ({
-        label: li.label,
-        quantity: Number(li.quantity),
-        unitPrice: Number(li.unitPrice),
-      })),
-    },
-    company
-  );
+  let url: string;
+  let buffer: Buffer;
 
-  await sendEmail({
-    to: quote.clientEmail,
-    subject: `Votre devis — ${company.name}`,
-    html: quoteSentTemplate({
-      clientName: quote.clientName,
-      serviceType: quote.serviceType,
-      totalAmount,
-      companyName: company.name,
-    }),
-    attachments: [{ filename: `devis-${quote.id.slice(-8)}.pdf`, content: buffer }],
-  });
+  try {
+    ({ url, buffer } = await generateQuotePdf(
+      {
+        id: quote.id,
+        clientName: quote.clientName,
+        clientEmail: quote.clientEmail,
+        clientPhone: quote.clientPhone,
+        clientAddress: quote.clientAddress,
+        serviceType: quote.serviceType,
+        createdAt: quote.createdAt,
+        lineItems: quote.lineItems.map((li) => ({
+          label: li.label,
+          quantity: Number(li.quantity),
+          unitPrice: Number(li.unitPrice),
+        })),
+      },
+      company
+    ));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erreur inconnue';
+    return NextResponse.json({ error: `Échec de la génération du PDF: ${message}` }, { status: 502 });
+  }
+
+  try {
+    await sendEmail({
+      to: quote.clientEmail,
+      subject: `Votre devis — ${company.name}`,
+      html: quoteSentTemplate({
+        clientName: quote.clientName,
+        serviceType: quote.serviceType,
+        totalAmount,
+        companyName: company.name,
+      }),
+      attachments: [{ filename: `devis-${quote.id.slice(-8)}.pdf`, content: buffer }],
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erreur inconnue';
+    return NextResponse.json({ error: `Échec de l'envoi de l'email: ${message}` }, { status: 502 });
+  }
 
   const updated = await prisma.quote.update({
     where: { id: quote.id },

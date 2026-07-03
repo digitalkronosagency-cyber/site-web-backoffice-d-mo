@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/require-admin';
 import { uploadFile } from '@/lib/blob';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
 export async function GET() {
   const { response } = await requireAdmin();
@@ -26,7 +27,14 @@ export async function POST(request: Request) {
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const pathname = `photos/${Date.now()}-${file.name}`;
-  const url = await uploadFile(pathname, buffer, file.type);
+
+  let url: string;
+  try {
+    url = await uploadFile(pathname, buffer, file.type);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erreur inconnue';
+    return NextResponse.json({ error: `Échec de l'upload: ${message}` }, { status: 502 });
+  }
 
   const count = await prisma.photo.count();
 
