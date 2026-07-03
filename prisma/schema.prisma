@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Company {
+  id           String   @id @default(cuid())
+  name         String   @default("Électricité Dumont")
+  phone        String
+  email        String
+  address      String
+  postalCode   String
+  city         String
+  siret        String
+  tvaNumber    String
+  description  String
+  cities       String[]
+  logoUrl      String?
+  heroImageUrl String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  icon        String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  name      String
+  rating    Int
+  comment   String
+  date      DateTime
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  url       String
+  alt       String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+enum QuoteStatus {
+  NOUVEAU
+  ENVOYE
+  RELANCE
+  SIGNE
+  REFUSE
+}
+
+model Quote {
+  id            String          @id @default(cuid())
+  clientName    String
+  clientEmail   String
+  clientPhone   String
+  clientAddress String?
+  serviceType   String
+  description   String
+  status        QuoteStatus     @default(NOUVEAU)
+  totalAmount   Decimal?        @db.Decimal(10, 2)
+  sentAt        DateTime?
+  lastRelanceAt DateTime?
+  signedAt      DateTime?
+  refusedAt     DateTime?
+  pdfUrl        String?
+  lineItems     QuoteLineItem[]
+  invoice       Invoice?
+  activities    ActivityLog[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([status])
+  @@index([clientEmail])
+}
+
+model QuoteLineItem {
+  id        String  @id @default(cuid())
+  quoteId   String
+  quote     Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  label     String
+  quantity  Decimal @db.Decimal(10, 2) @default(1)
+  unitPrice Decimal @db.Decimal(10, 2)
+  order     Int     @default(0)
+}
+
+enum InvoiceStatus {
+  EN_ATTENTE
+  PAYEE
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  number        String        @unique
+  quoteId       String        @unique
+  quote         Quote         @relation(fields: [quoteId], references: [id])
+  clientName    String
+  clientEmail   String
+  clientAddress String?
+  amountHT      Decimal       @db.Decimal(10, 2)
+  tvaRate       Decimal       @db.Decimal(4, 2) @default(20.00)
+  amountTTC     Decimal       @db.Decimal(10, 2)
+  status        InvoiceStatus @default(EN_ATTENTE)
+  paidAt        DateTime?
+  pdfUrl        String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([status])
+}
+
+model Counter {
+  key   String @id
+  value Int    @default(0)
+}
+
+model AdminLoginToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  email     String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([expiresAt])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  type      String
+  message   String
+  quoteId   String?
+  quote     Quote?   @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
